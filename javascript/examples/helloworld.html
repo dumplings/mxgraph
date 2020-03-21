@@ -1,6 +1,6 @@
 <!--
   Copyright (c) 2006-2018, JGraph Ltd
-  
+
   Hello, World! example for mxGraph. This example demonstrates using
   a DOM node to create a graph and adding vertices and edges.
 -->
@@ -21,6 +21,7 @@
 		// Program starts here. Creates a sample graph in the
 		// DOM node with the specified ID. This function is invoked
 		// from the onLoad event handler of the document (see below).
+        var graph;
 		function main(container)
 		{
 			// Checks if the browser is supported
@@ -32,19 +33,38 @@
 			else
 			{
 				// Disables the built-in context menu
+				/**
+				 * note
+				 * 禁用了鼠标的右键行为。mxGraph好像没有提供自定义右键菜单的功能，不过该功能可以自己实现，通过js+html。
+                 * 扩展一下右键的功能还是可以增加一些交互的可玩性的。
+				 */
 				mxEvent.disableContextMenu(container);
-				
+
 				// Creates the graph inside the given container
-				var graph = new mxGraph(container);
+				graph = new mxGraph(container);
 
 				// Enables rubberband selection
+				/**
+				 * note
+				 * 支持鼠标选框，批量选择，参看graph.getSelectionCells()
+				 */
 				new mxRubberband(graph);
-				
+
 				// Gets the default parent for inserting new cells. This
 				// is normally the first child of the root (ie. layer 0).
+				/**
+				 * note
+                 * 这里可以看一下源码的逻辑，可以学到到底谁是defaultParent，这决定着你的cell会insert到哪一层
+				 */
 				var parent = graph.getDefaultParent();
-								
+
 				// Adds cells to the model in a single step
+				/**
+				 * note
+				 * @link https://jgraph.github.io/mxgraph/docs/tutorial.html#2.5
+                 * 此处一定要结合着这个链接中的内容去学习，主要关于[beginUpdate]和[endUpdate]的使用时机来讲解，
+				 * 很像一种js的事务实现。
+				 */
 				graph.getModel().beginUpdate();
 				try
 				{
