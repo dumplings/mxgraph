@@ -1,6 +1,6 @@
 <!--
   Copyright (c) 2006-2017, JGraph Ltd
-  
+
   Animation example for mxGraph. This example demonstrates using
   SVG animations on edges to visualize the flow in a pipe.
 -->
@@ -28,18 +28,30 @@
 		  }
 		}
 	</style>
-	
+
 	<!-- Example code -->
 	<script type="text/javascript">
+		/**
+		 * note
+		 * 这个demo主要学到的是关于svg的动画样式设置，和graph的样式设置
+		 * 从这个demo中可以看到，想给我们自己的graph去设置动画，要学一些svg的样式知识
+		 */
+        var graph;
 		function main(container)
 		{
-			var graph = new mxGraph(container);
+			graph = new mxGraph(container);
+			/**
+			 * note
+			 * 这是控制视图不可交互吗？
+			 * https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.setEnabled
+			 * 如何才能只给指定的进行setEnabled呢，比如说不希望进行线编辑
+			 */
 			graph.setEnabled(false);
 			var parent = graph.getDefaultParent();
 
 			var vertexStyle = 'shape=cylinder;strokeWidth=2;fillColor=#ffffff;strokeColor=black;' +
 				'gradientColor=#a0a0a0;fontColor=black;fontStyle=1;spacingTop=14;';
-			
+
 			graph.getModel().beginUpdate();
 			try
 			{
