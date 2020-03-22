@@ -1,198 +1,268 @@
 <!--
   Copyright (c) 2006-2013, JGraph Ltd
-  
+
   Autolayout example for mxGraph. This example demonstrates running
   and animating a layout algorithm after every change to a graph.
 -->
 <html>
 <head>
-	<title>Auto layout example for mxGraph</title>
+    <title>Auto layout example for mxGraph</title>
 
-	<!-- Sets the basepath for the library if not in same directory -->
-	<script type="text/javascript">
-		mxBasePath = '../src';
-	</script>
+    <!-- Sets the basepath for the library if not in same directory -->
+    <script type="text/javascript">
+        mxBasePath = '../src';
+    </script>
 
-	<!-- Loads and initializes the library -->
-	<script type="text/javascript" src="../src/js/mxClient.js"></script>
+    <!-- Loads and initializes the library -->
+    <script type="text/javascript" src="../src/js/mxClient.js"></script>
 
-	<!-- Example code -->
-	<script type="text/javascript">
-		// Program starts here. Creates a sample graph in the
-		// DOM node with the specified ID. This function is invoked
-		// from the onLoad event handler of the document (see below).
-		function main(container)
-		{
-			// Checks if the browser is supported
-			if (!mxClient.isBrowserSupported())
-			{
-				// Displays an error message if the browser is not supported.
-				mxUtils.error('Browser is not supported!', 200, false);
-			}
-			else
-			{
-				mxEvent.disableContextMenu(container);
-				
-				var mxCellRendererInstallCellOverlayListeners = mxCellRenderer.prototype.installCellOverlayListeners;
-				mxCellRenderer.prototype.installCellOverlayListeners = function(state, overlay, shape)
-				{
-					mxCellRendererInstallCellOverlayListeners.apply(this, arguments);
+    <!-- Example code -->
+    <script type="text/javascript">
+        // Program starts here. Creates a sample graph in the
+        // DOM node with the specified ID. This function is invoked
+        // from the onLoad event handler of the document (see below).
+        var graph;
+        function main(container) {
+            // Checks if the browser is supported
+            if (!mxClient.isBrowserSupported()) {
+                // Displays an error message if the browser is not supported.
+                mxUtils.error('Browser is not supported!', 200, false);
+            } else {
+                mxEvent.disableContextMenu(container);
 
-					mxEvent.addListener(shape.node, (mxClient.IS_POINTER) ? 'pointerdown' : 'mousedown', function (evt)
-					{
-						overlay.fireEvent(new mxEventObject('pointerdown', 'event', evt, 'state', state));
-					});
-					
-					if (!mxClient.IS_POINTER && mxClient.IS_TOUCH)
-					{
-						mxEvent.addListener(shape.node, 'touchstart', function (evt)
-						{
-							overlay.fireEvent(new mxEventObject('pointerdown', 'event', evt, 'state', state));
-						});
-					}
-				};
-				
-				// Creates the graph inside the given container
-				var graph = new mxGraph(container);
-				graph.setPanning(true);
-				graph.panningHandler.useLeftButtonForPanning = true;
-				graph.setAllowDanglingEdges(false);
-				graph.connectionHandler.select = false;
-				graph.view.setTranslate(20, 20);
+                /**
+                 * 这个在api文档中的名字是installOverlayListeners
+                 * 注意先把原installCellOverlayListeners指针指给新定义的变量，然后对原原型链上函数改写。
+                 * 该函数会在mxCellRenderer.prototype.createCellOverlays执行时触发
+                 */
+                var mxCellRendererInstallCellOverlayListeners = mxCellRenderer.prototype.installCellOverlayListeners;
+                mxCellRenderer.prototype.installCellOverlayListeners = function (state, overlay, shape) {
+                    mxCellRendererInstallCellOverlayListeners.apply(this, arguments);
 
-				// Enables rubberband selection
-				new mxRubberband(graph);
-				
-				// Gets the default parent for inserting new cells. This
-				// is normally the first child of the root (ie. layer 0).
-				var parent = graph.getDefaultParent();
-				
-				var addOverlay = function(cell)
-				{
-					// Creates a new overlay with an image and a tooltip
-					var overlay = new mxCellOverlay(new mxImage('images/add.png', 24, 24), 'Add outgoing');
-					overlay.cursor = 'hand';
+                    /**
+                     * note
+                     * 指针事件是新增的事件，主要针对于新型的输入设备，考虑到向前兼容，继承所有mouse事件。
+                     * https://developer.mozilla.org/zh-CN/docs/Web/API/Pointer_events
+                     * [mxCellOverlay]是个什么东西
+                     */
+                    mxEvent.addListener(shape.node, (mxClient.IS_POINTER) ? 'pointerdown' : 'mousedown', function (evt) {
+                        /**
+                         * 如果是overlay执行fireEvent，那应该有overlay接收
+                         */
+                        overlay.fireEvent(new mxEventObject('pointerdown', 'event', evt, 'state', state));
+                    });
 
-					// Installs a handler for clicks on the overlay							
-					overlay.addListener(mxEvent.CLICK, function(sender, evt2)
-					{
-						graph.clearSelection();
-						var geo = graph.getCellGeometry(cell);
-						
-						var v2;
-						
-						executeLayout(function()
-						{
-							v2 = graph.insertVertex(parent, null, 'World!', geo.x, geo.y, 80, 30);
-							addOverlay(v2);
-							graph.view.refresh(v2);
-							var e1 = graph.insertEdge(parent, null, '', cell, v2);
-						}, function()
-						{
-							graph.scrollCellToVisible(v2);
-						});
-					});
-					
-					// Special CMS event
-					overlay.addListener('pointerdown', function(sender, eo)
-					{
-						var evt2 = eo.getProperty('event');
-						var state = eo.getProperty('state');
-						
-						graph.popupMenuHandler.hideMenu();
-						graph.stopEditing(false);
-						
-						var pt = mxUtils.convertPoint(graph.container,
-								mxEvent.getClientX(evt2), mxEvent.getClientY(evt2));
-						graph.connectionHandler.start(state, pt.x, pt.y);
-						graph.isMouseDown = true;
-						graph.isMouseTrigger = mxEvent.isMouseEvent(evt2);
-						mxEvent.consume(evt2);
-					});
-					
-					// Sets the overlay for the cell in the graph
-					graph.addCellOverlay(cell, overlay);
-				}
-								
-				// Adds cells to the model in a single step
-				graph.getModel().beginUpdate();
-				var v1;
-				try
-				{
-					v1 = graph.insertVertex(parent, null, 'Hello,', 0, 0, 80, 30);
-					addOverlay(v1);
-				}
-				finally
-				{
-					// Updates the display
-					graph.getModel().endUpdate();
-				}
+                    if (!mxClient.IS_POINTER && mxClient.IS_TOUCH) {
+                        mxEvent.addListener(shape.node, 'touchstart', function (evt) {
+                            overlay.fireEvent(new mxEventObject('pointerdown', 'event', evt, 'state', state));
+                        });
+                    }
+                };
 
-				var layout = new mxHierarchicalLayout(graph, mxConstants.DIRECTION_WEST);
-				
-				var executeLayout = function(change, post)
-				{
-					graph.getModel().beginUpdate();
-					try
-					{
-						if (change != null)
-						{
-							change();
-						}
-						
-		    			layout.execute(graph.getDefaultParent(), v1);
-					}
-					catch (e)
-					{
-						throw e;
-					}
-					finally
-					{
-						// New API for animating graph layout results asynchronously
-						var morph = new mxMorphing(graph);
-						morph.addListener(mxEvent.DONE, mxUtils.bind(this, function()
-						{
-							graph.getModel().endUpdate();
-							
-							if (post != null)
-							{
-								post();
-							}
-						}));
-						
-						morph.startAnimation();
-					}
-				};
-				
-				var edgeHandleConnect = mxEdgeHandler.prototype.connect;
-				mxEdgeHandler.prototype.connect = function(edge, terminal, isSource, isClone, me)
-				{
-					edgeHandleConnect.apply(this, arguments);
-					executeLayout();
-				};
-				
-				graph.resizeCell = function()
-				{
-					mxGraph.prototype.resizeCell.apply(this, arguments);
+                // Creates the graph inside the given container
+                graph = new mxGraph(container);
+                /**
+                 * 这是个问题了，什么是panning啊，为false也没有影响到我的node移动呢。
+                 * 学会了，这是整个graph的平稳操作，不是某个Node的。
+                 */
+                graph.setPanning(true);
+                /**
+                 * 指定用左键激活平稳，没有说只能用左键。不理解，难道是『只能』的意思吗，同时说与mxRubberhand会冲突。
+                 * 这个值默认是false，之前记得没有设置过这个值，那默认就是false，也就是说false时也可以，那就是这个值
+                 * 控制的是『只能』？
+                 * 这个值没明白，改完值为false后，一样可以左右键拖动，不是我所想？是不是我理解错了panning。
+                 * ---------new----------
+                 * 可以了，弄明白了，是panning是整个graph的平移。人家没问题。这我也就明白了为什么会和mxRubberband有冲突了。那这样来说的话，
+                 * 如何保持rubberband并且可用左键拖动呢。我看了一下processon，看来这个问题无解，确实，本身交互行为就是冲突。
+                 */
+                graph.panningHandler.useLeftButtonForPanning = true;
+                /**
+                 * note
+                 * 这个可能要参看一下allowDanglingEdges属性
+                 * Specifies if edges with disconnected terminals are allowed in the graph.  Default is true.
+                 * https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.allowDanglingEdges
+                 * https://stackoverflow.com/questions/48021227/locking-an-edge-to-a-vertex-in-mxgraph
+                 * 我的理解是一条可能存在有一端无端点链接的线，是否允许这样的线存在。
+                 * terminal，线接头，末端，在edge中，这个单词的理解。
+                 * dangling，悬空的，悬挂的。
+                 * question
+                 * 这里还是有个疑问的，因为没有设置setDisconnectOnMove为true，那当移动时，一来来说线应该会断掉的。
+                 * 而我们demo中并不是。这是如何实现的？
+                 */
+                graph.setAllowDanglingEdges(false);
+                /**
+                 * question
+                 * API解释：Specifies if new edges should be selected.  Default is true.
+                 * 新建了一个节点，即生成新线，试验了一下没看出效果。官方好多功能是不是有所抛弃。
+                 */
+                graph.connectionHandler.select = true;
+                /**
+                 * note
+                 * 这个好像是控制了一下初始graph的位置。
+                 */
+                graph.view.setTranslate(20, 20);
 
-					executeLayout();
-				};
+                // Enables rubberband selection
+                new mxRubberband(graph);
 
-				graph.connectionHandler.addListener(mxEvent.CONNECT, function()
-				{
-					executeLayout();
-				});
-			}
-		};
-	</script>
+                // Gets the default parent for inserting new cells. This
+                // is normally the first child of the root (ie. layer 0).
+                var parent = graph.getDefaultParent();
+
+                var addOverlay = function (cell) {
+                    // Creates a new overlay with an image and a tooltip
+                    /**
+                     * question
+                     * tooltip没有显示，是不是这里只是设置值了，而没有打开显示的开关。
+                     * https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.getTooltip
+                     * https://github.com/jgraph/mxgraph/issues/311
+                     * 有一点恐怖的是该问题是19年5月份提的，至今没有官方回应。
+                     * 是需要自己实现方法吗，至少应该给个回应啊。这个工具可能官方自己也不太关注了
+                     * stackoverflow中也指出了是mxGraph的问题，提供了一种改写的方案。可以看一下这个链接。
+                     * https://stackoverflow.com/questions/55256690/mxgraph-tooltip-doesnt-show
+                     */
+                    var overlay = new mxCellOverlay(new mxImage('images/add.png', 24, 24), 'Add outgoing');
+                    /**
+                     * 焦点的样式设定。不是通过特有的css吗。
+                     * 在哪能看到所有的cursor枚举值呢。
+                     */
+                    overlay.cursor = 'hand';
+
+                    // Installs a handler for clicks on the overlay
+                    overlay.addListener(mxEvent.CLICK, function (sender, evt2) {
+                        graph.clearSelection();
+                        var geo = graph.getCellGeometry(cell);
+
+                        var v2;
+
+                        executeLayout(function () {
+                            /**
+                             * question
+                             * 定位上看，新的cell和之前是有距离的，这里的坐标给出的是之前的。
+                             */
+                            v2 = graph.insertVertex(parent, null, 'World!', geo.x, geo.y, 80, 30);
+                            addOverlay(v2);
+                            /**
+                             * note & question
+                             * 清除指定cell上的states，这里需要学习一下都有哪些states了，选中？这些states有什么用。
+                             */
+                            graph.view.refresh(v2);
+                            console.log(v2.getGeometry());
+                            var e1 = graph.insertEdge(parent, null, '', cell, v2);
+                        }, function () {
+                            /**
+                             * note
+                             * 目的是平移graph，希望将指定的cell展示出来。
+                             */
+                            console.log(v2.getGeometry());
+                            graph.scrollCellToVisible(v2);
+                        });
+                    });
+
+                    // Special CMS event
+                    /**
+                     * question
+                     * 什么是CMS？？？
+                     */
+                    overlay.addListener('pointerdown', function (sender, eo) {
+                        var evt2 = eo.getProperty('event');
+                        var state = eo.getProperty('state');
+
+                        graph.popupMenuHandler.hideMenu();
+                        graph.stopEditing(false);
+
+                        /**
+                         * note
+                         * 大概就是取坐标的一种方式吧。
+                         */
+                        var pt = mxUtils.convertPoint(graph.container,
+                            mxEvent.getClientX(evt2), mxEvent.getClientY(evt2));
+                        graph.connectionHandler.start(state, pt.x, pt.y);
+                        graph.isMouseDown = true;
+                        graph.isMouseTrigger = mxEvent.isMouseEvent(evt2);
+                        /**
+                         * note
+                         * 应该是帮助执行事件的默认行为，一个是stop冒泡，一个是执行默认行为
+                         * 我的理解是事件行为的标准？又感觉不对。。
+                         */
+                        mxEvent.consume(evt2);
+                    });
+
+                    // Sets the overlay for the cell in the graph
+                    graph.addCellOverlay(cell, overlay);
+                }
+
+                // Adds cells to the model in a single step
+                graph.getModel().beginUpdate();
+                var v1;
+                try {
+                    v1 = graph.insertVertex(parent, null, 'Hello,', 0, 0, 80, 30);
+                    addOverlay(v1);
+                } finally {
+                    // Updates the display
+                    graph.getModel().endUpdate();
+                }
+
+                /**
+                 * note
+                 * mxHierarchicalLayout: A hierarchical layout algorithm.
+                 * 我前面怀疑过关于将上一个节点的坐标给到新节点时，坐标相同，为什么结果会有偏移。
+                 * 应该是这个工具启到的作用，是一种分层布局算法。
+                 * 当执行execute时，第二个参数是指定了全局布局的root。
+                 */
+                var layout = new mxHierarchicalLayout(graph, mxConstants.DIRECTION_WEST);
+
+                var executeLayout = function (change, post) {
+                    graph.getModel().beginUpdate();
+                    try {
+                        if (change != null) {
+                            change();
+                        }
+
+                        layout.execute(graph.getDefaultParent(), v1);
+                    } catch (e) {
+                        throw e;
+                    } finally {
+                        // New API for animating graph layout results asynchronously
+                        var morph = new mxMorphing(graph);
+                        morph.addListener(mxEvent.DONE, mxUtils.bind(this, function () {
+                            graph.getModel().endUpdate();
+
+                            if (post != null) {
+                                post();
+                            }
+                        }));
+
+                        morph.startAnimation();
+                    }
+                };
+
+                var edgeHandleConnect = mxEdgeHandler.prototype.connect;
+                mxEdgeHandler.prototype.connect = function (edge, terminal, isSource, isClone, me) {
+                    edgeHandleConnect.apply(this, arguments);
+                    executeLayout();
+                };
+
+                graph.resizeCell = function () {
+                    mxGraph.prototype.resizeCell.apply(this, arguments);
+
+                    executeLayout();
+                };
+
+                graph.connectionHandler.addListener(mxEvent.CONNECT, function () {
+                    executeLayout();
+                });
+            }
+        };
+    </script>
 </head>
 
 <!-- Page passes the container for the graph to the program -->
 <body onload="main(document.getElementById('graphContainer'))">
 
-	<!-- Creates a container for the graph with a grid wallpaper -->
-	<div id="graphContainer"
-		style="position:relative;overflow:hidden;width:821px;height:641px;background:url('editors/images/grid.gif');cursor:default;">
-	</div>
+<!-- Creates a container for the graph with a grid wallpaper -->
+<div id="graphContainer"
+     style="position:relative;overflow:hidden;width:821px;height:641px;background:url('editors/images/grid.gif');cursor:default;">
+</div>
 </body>
 </html>
