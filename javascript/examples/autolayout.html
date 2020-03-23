@@ -52,6 +52,9 @@
                         overlay.fireEvent(new mxEventObject('pointerdown', 'event', evt, 'state', state));
                     });
 
+                    /**
+                     * 这个应该是事件的不兼容时多做一层事件绑定。
+                     */
                     if (!mxClient.IS_POINTER && mxClient.IS_TOUCH) {
                         mxEvent.addListener(shape.node, 'touchstart', function (evt) {
                             overlay.fireEvent(new mxEventObject('pointerdown', 'event', evt, 'state', state));
@@ -121,7 +124,9 @@
                      * stackoverflow中也指出了是mxGraph的问题，提供了一种改写的方案。可以看一下这个链接。
                      * https://stackoverflow.com/questions/55256690/mxgraph-tooltip-doesnt-show
                      */
+                    console.log('before the new mxCellOverlay')
                     var overlay = new mxCellOverlay(new mxImage('images/add.png', 24, 24), 'Add outgoing');
+                    console.log('after the new mxCellOverlay')
                     /**
                      * 焦点的样式设定。不是通过特有的css吗。
                      * 在哪能看到所有的cursor枚举值呢。
@@ -163,8 +168,16 @@
                     /**
                      * question
                      * 什么是CMS？？？
+                     * note
+                     * 这个事件的触发早于click，是前置工作的准备吧。
+                     * 那如果是前置的话，我看到做了两个事：
+                     *  1. 关于操作菜单，停止编辑功能；
+                     *  2. 触发graph.connectionHandler.start；
+                     *
+                     * 第二件事到底是干嘛的？mxConnection是指什么？
                      */
                     overlay.addListener('pointerdown', function (sender, eo) {
+                        console.log('the pointerdown callback is invoke.')
                         var evt2 = eo.getProperty('event');
                         var state = eo.getProperty('state');
 
@@ -177,6 +190,12 @@
                          */
                         var pt = mxUtils.convertPoint(graph.container,
                             mxEvent.getClientX(evt2), mxEvent.getClientY(evt2));
+                        /**
+                         * question
+                         * 这个函数没明白，是怎么创建连线，我只看到了一端啊。
+                         * 不对不对，两个端点的连线在上面的insertEdge，那这里的start是干嘛的。
+                         *connectionHandler.start注释了也没有影响整体流程，这到底是干嘛用的
+                         */
                         graph.connectionHandler.start(state, pt.x, pt.y);
                         graph.isMouseDown = true;
                         graph.isMouseTrigger = mxEvent.isMouseEvent(evt2);
@@ -189,7 +208,9 @@
                     });
 
                     // Sets the overlay for the cell in the graph
+                    console.log('before graph.addCellOverlay')
                     graph.addCellOverlay(cell, overlay);
+                    console.log('after graph.addCellOverlay')
                 }
 
                 // Adds cells to the model in a single step
