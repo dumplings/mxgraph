@@ -5,6 +5,7 @@
   icons on vertices as mouse hovers over them.
 -->
 <html>
+
 <head>
 	<title>Hover icons example for mxGraph</title>
 
@@ -21,13 +22,12 @@
 		// Defines an icon for creating new connections in the connection handler.
 		// This will automatically disable the highlighting of the source vertex.
 		mxConnectionHandler.prototype.connectImage = new mxImage('images/connector.gif', 16, 16);
-		
+
 		// Defines a new class for all icons
-		function mxIconSet(state)
-		{
+		function mxIconSet(state) {
 			this.images = [];
 			var graph = state.view.graph;
-			
+
 			// Icon1
 			var img = mxUtils.createImage('images/copy.png');
 			img.setAttribute('title', 'Duplicate');
@@ -37,20 +37,43 @@
 			img.style.height = '16px';
 			img.style.left = (state.x + state.width) + 'px';
 			img.style.top = (state.y + state.height) + 'px';
-			
+
+			/**
+			 * 给copy img添加事件监听
+			 * addGestureListeners: Adds the given listeners for touch, mouse and/or pointer events. 
+			 */
 			mxEvent.addGestureListeners(img,
-				mxUtils.bind(this, function(evt)
-				{
+				mxUtils.bind(this, function (evt) {
+					/**
+					 * gridSize，风格大小。是相当于移动单位吗。
+					 */
 					var s = graph.gridSize;
+					/**
+					 * moveCells:
+					 * 		Moves or clones the specified cells and moves the cells or clones by
+					 *  	the given amount, adding them to the optional target cell.  The evt 
+					 * 		is the mouse event as the mouse was released.  The change is carried
+					 *  	out using cellsMoved.  This method fires mxEvent.MOVE_CELLS while the
+					 * 		transaction is in progress.  Returns the cells that were moved.
+					 * setSelectionCells:
+					 * 		Sets the selection cell.
+					 */
 					graph.setSelectionCells(graph.moveCells([state.cell], s, s, true));
+					/**
+					 * 看到过多次了，应该是阻止事件继续进行吧。
+					 * https://jgraph.github.io/mxgraph/docs/js-api/files/util/mxEvent-js.html#mxEvent.consume
+					 */
 					mxEvent.consume(evt);
 					this.destroy();
 				})
 			);
-			
+
+			/**
+			 * 干嘛要把这个Icon添加到container上啊??????
+			 */
 			state.view.graph.container.appendChild(img);
 			this.images.push(img);
-			
+
 			// Delete
 			var img = mxUtils.createImage('images/delete2.png');
 			img.setAttribute('title', 'Delete');
@@ -60,149 +83,165 @@
 			img.style.height = '16px';
 			img.style.left = (state.x + state.width) + 'px';
 			img.style.top = (state.y - 16) + 'px';
-			
+
 			mxEvent.addGestureListeners(img,
-				mxUtils.bind(this, function(evt)
-				{
+				mxUtils.bind(this, function (evt) {
 					// Disables dragging the image
+					/**
+					 * 结合下面的addListener，这是先把该img上所有的touch, mouse事件全干掉，再单独加click吗
+					 * 这里的这个手势，可能指代的更多内容
+					 */
 					mxEvent.consume(evt);
 				})
 			);
-			
+
 			mxEvent.addListener(img, 'click',
-				mxUtils.bind(this, function(evt)
-				{
+				mxUtils.bind(this, function (evt) {
 					graph.removeCells([state.cell]);
 					mxEvent.consume(evt);
 					this.destroy();
 				})
 			);
-			
+
 			state.view.graph.container.appendChild(img);
 			this.images.push(img);
 		};
 
-		mxIconSet.prototype.destroy = function()
-		{
-			if (this.images != null)
-			{
-				for (var i = 0; i < this.images.length; i++)
-				{
+		/**
+		 * 这个销毁函数是干嘛的，是为了显隐操作吗。
+		 * 为啥不用hide方法，这样元素的删除添加，相对来说感觉更耗性能呢
+		 */
+		mxIconSet.prototype.destroy = function () {
+			if (this.images != null) {
+				for (var i = 0; i < this.images.length; i++) {
 					var img = this.images[i];
+					/**
+					 * 没错，这个就是dom的操作
+					 */
 					img.parentNode.removeChild(img);
 				}
 			}
-			
+
 			this.images = null;
 		};
 
 		// Program starts here. Creates a sample graph in the
 		// DOM node with the specified ID. This function is invoked
 		// from the onLoad event handler of the document (see below).
-		function main(container)
-		{
+		function main(container) {
 			// Checks if the browser is supported
-			if (!mxClient.isBrowserSupported())
-			{
+			if (!mxClient.isBrowserSupported()) {
 				// Displays an error message if the browser is not supported.
 				mxUtils.error('Browser is not supported!', 200, false);
 			}
-			else
-			{
+			else {
 				// Creates the graph inside the given container
-				var graph = new mxGraph(container);
+				graph = new mxGraph(container);
 				graph.setConnectable(true);
-				
+
 				// Defines the tolerance before removing the icons
+				/**
+				 * 没明白，干嘛用的
+				 */
 				var iconTolerance = 20;
 
 				// Shows icons if the mouse is over a cell
+				/**
+				 * Adds a listener to the graph event dispatch loop.  
+				 * The listener must implement the mouseDown, mouseMove 
+				 * and mouseUp methods as shown in the mxMouseEvent class.
+				 * 
+				 * mouseDown:	mousedown 事件在指针设备按钮按下时触发。
+				 * mouseUp:	mouseup事件在指针设备按钮抬起时触发。
+				 * mouseMove:	当指针设备( 通常指鼠标 )在元素上移动时, mousemove 事件被触发。
+				 */
 				graph.addMouseListener(
-				{
-				    currentState: null,
-				    currentIconSet: null,
-				    mouseDown: function(sender, me)
-				    {
-				    	// Hides icons on mouse down
-			        	if (this.currentState != null)
-			        	{
-			          		this.dragLeave(me.getEvent(), this.currentState);
-			          		this.currentState = null;
-			        	}
-				    },
-				    mouseMove: function(sender, me)
-				    {
-				    	if (this.currentState != null && (me.getState() == this.currentState ||
-				    		me.getState() == null))
-				    	{
-				    		var tol = iconTolerance;
-				    		var tmp = new mxRectangle(me.getGraphX() - tol,
-				    			me.getGraphY() - tol, 2 * tol, 2 * tol);
+					{
+						currentState: null,
+						currentIconSet: null,
+						mouseDown: function (sender, me) {
+							// Hides icons on mouse down
+							if (this.currentState != null) {
+								this.dragLeave(me.getEvent(), this.currentState);
+								this.currentState = null;
+							}
+						},
+						/**
+						 * 看懂了，这个函数很有意思，首先要注意到事件变化的流转过程，再就是currentState的变化。
+						 */
+						mouseMove: function (sender, me) {
+							if (this.currentState != null && (me.getState() == this.currentState ||
+								me.getState() == null)) {
+								var tol = iconTolerance;
+								var tmp = new mxRectangle(me.getGraphX() - tol,
+									me.getGraphY() - tol, 2 * tol, 2 * tol);
 
-				    		if (mxUtils.intersects(tmp, this.currentState))
-				    		{
-				    			return;
-				    		}
-				    	}
-				    	
-						var tmp = graph.view.getState(me.getCell());
-				    	
-				    	// Ignores everything but vertices
-						if (graph.isMouseDown || (tmp != null && !graph.getModel().isVertex(tmp.cell)))
-						{
-							tmp = null;
+								/**
+								 * 判断给定的两个Rectangle是否相交，注意这里的this.currentState是Cell而不是state吗？
+								 */
+								if (mxUtils.intersects(tmp, this.currentState)) {
+									console.log(1, this.currentState)
+									return;
+								}
+							}
+
+							var tmp = graph.view.getState(me.getCell());
+							console.log(2, tmp)
+
+							// Ignores everything but vertices
+							/**
+							 * isMouseDown: Holds the state of the mouse button.
+							 */
+							if (graph.isMouseDown || (tmp != null && !graph.getModel().isVertex(tmp.cell))) {
+								tmp = null;
+							}
+
+							/**
+							 * 注意一个事，就是基本上从上面流程开始，想要业务继续下去，那currentState一定不为空
+							 * 所以注意一下是哪里做的currentState的维护
+							 */
+							if (tmp != this.currentState) {
+								console.log(3, tmp, this.currentState)
+								if (this.currentState != null) {
+									this.dragLeave(me.getEvent(), this.currentState);
+								}
+
+								this.currentState = tmp;
+
+								if (this.currentState != null) {
+									this.dragEnter(me.getEvent(), this.currentState);
+								}
+							}
+						},
+						mouseUp: function (sender, me) { },
+						dragEnter: function (evt, state) {
+							if (this.currentIconSet == null) {
+								this.currentIconSet = new mxIconSet(state);
+							}
+						},
+						dragLeave: function (evt, state) {
+							if (this.currentIconSet != null) {
+								this.currentIconSet.destroy();
+								this.currentIconSet = null;
+							}
 						}
+					});
 
-				      	if (tmp != this.currentState)
-				      	{
-				        	if (this.currentState != null)
-				        	{
-				          		this.dragLeave(me.getEvent(), this.currentState);
-				        	}
-				        
-			        		this.currentState = tmp;
-				        
-				        	if (this.currentState != null)
-				        	{
-				          		this.dragEnter(me.getEvent(), this.currentState);
-				        	}
-				      	}
-				    },
-				    mouseUp: function(sender, me) { },
-				    dragEnter: function(evt, state)
-				    {
-				    	if (this.currentIconSet == null)
-				    	{
-			    			this.currentIconSet = new mxIconSet(state);
-				    	}
-				    },
-				    dragLeave: function(evt, state)
-				    {
-				    	if (this.currentIconSet != null)
-				    	{
-			    			this.currentIconSet.destroy();
-			    			this.currentIconSet = null;
-				    	}
-				    }
-				});
-				 
 				// Enables rubberband selection
 				new mxRubberband(graph);
-				
+
 				// Gets the default parent for inserting new cells. This
 				// is normally the first child of the root (ie. layer 0).
 				var parent = graph.getDefaultParent();
-								
+
 				// Adds cells to the model in a single step
 				graph.getModel().beginUpdate();
-				try
-				{
+				try {
 					var v1 = graph.insertVertex(parent, null, 'Hello,', 20, 20, 80, 30);
 					var v2 = graph.insertVertex(parent, null, 'World!', 200, 150, 80, 30);
 					var e1 = graph.insertEdge(parent, null, '', v1, v2);
 				}
-				finally
-				{
+				finally {
 					// Updates the display
 					graph.getModel().endUpdate();
 				}
@@ -212,6 +251,7 @@
 </head>
 
 <!-- Page passes the container for the graph to the program -->
+
 <body onload="main(document.getElementById('graphContainer'))">
 
 	<!-- Creates a container for the graph with a grid wallpaper -->
@@ -219,4 +259,5 @@
 		style="overflow:hidden;width:321px;height:241px;background:url('editors/images/grid.gif');cursor:default;">
 	</div>
 </body>
+
 </html>
