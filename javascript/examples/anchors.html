@@ -5,6 +5,7 @@
   fixed connection points for all shapes.
 -->
 <html>
+
 <head>
     <title>Anchors example for mxGraph</title>
 
@@ -38,7 +39,8 @@
         };
 
         // Defines the default constraints for all shapes
-        mxShape.prototype.constraints = [new mxConnectionConstraint(new mxPoint(0.25, 0), true),
+        mxShape.prototype.constraints = [
+            new mxConnectionConstraint(new mxPoint(0.25, 0), false),
             new mxConnectionConstraint(new mxPoint(0.5, 0), true),
             new mxConnectionConstraint(new mxPoint(0.75, 0), true),
             new mxConnectionConstraint(new mxPoint(0, 0.25), true),
@@ -112,11 +114,13 @@
 </head>
 
 <!-- Page passes the container for the graph to the program -->
+
 <body onload="main(document.getElementById('graphContainer'))">
 
-<!-- Creates a container for the graph with a grid wallpaper -->
-<div id="graphContainer"
-     style="position:relative;overflow:hidden;width:321px;height:241px;background:url('editors/images/grid.gif');cursor:default;">
-</div>
+    <!-- Creates a container for the graph with a grid wallpaper -->
+    <div id="graphContainer"
+        style="position:relative;overflow:hidden;width:321px;height:241px;background:url('editors/images/grid.gif');cursor:default;">
+    </div>
 </body>
+
 </html>
